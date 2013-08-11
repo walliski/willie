@@ -13,7 +13,8 @@
 
 import sys, os
 parentdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.sys.path.insert(0,parentdir) 
+os.sys.path.insert(0,parentdir)
+os.sys.path.insert(0, os.path.dirname(__file__))
 from willie import __version__
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -28,7 +29,7 @@ from willie import __version__
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc']
+extensions = ['sphinx.ext.autodoc', 'pandoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
