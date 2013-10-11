@@ -87,7 +87,7 @@ def retry_join(bot, trigger):
 def handle_names(bot, trigger):
     ''' Handle NAMES response, happens when joining to channels'''
     names = re.split(' ', trigger)
-    channels = re.search('(#\S*)', bot.raw)
+    channels = re.search('([#!]\S*)', bot.raw)
     if (channels is None):
         return
     channel = channels.group(1)
@@ -131,7 +131,7 @@ def track_modes(bot, trigger):
 
     # If the first character of where the mode is being set isn't a #
     # then it's a user mode, not a channel mode, so we'll ignore it.
-    if line[0][0] != '#':
+    if line[0][0] != '#' and line[0][0] != '!':
         return
     channel, mode_sec = line[:2]
     nicks = [Nick(n) for n in line[2:]]
