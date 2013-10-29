@@ -280,8 +280,11 @@ def track_join(bot, trigger):
 @willie.module.event('QUIT')
 @willie.module.unblockable
 def track_quit(bot, trigger):
-    del bot.privileges[trigger.sender][trigger.args[1]]
-
+    try:
+        del bot.privileges[trigger.sender][trigger.args[1]]
+    except KeyError:
+        print "Something went wrong when trying to track permissions on QUIT"
+	print trigger.args
 
 @willie.module.rule('.*')
 @willie.module.event('CAP')
