@@ -140,6 +140,7 @@ def weather(bot, trigger):
             return bot.msg(trigger.sender, "I don't know where you live. " +
                            'Give me a location, like .weather London, or tell me where you live by saying .setlocation London, for example.')
     else:
+        location = location.strip()
         if bot.db and location in bot.db.preferences:
             woeid = bot.db.preferences.get(location, 'woeid')
         else:

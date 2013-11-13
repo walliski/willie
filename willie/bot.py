@@ -14,6 +14,7 @@ import time
 import imp
 import os
 import re
+import sys
 import socket
 import threading
 
@@ -56,6 +57,14 @@ class Willie(irc.Bot):
         """A set containing the IRCv3 capabilities that the server supports.
 
         For servers that do not support IRCv3, this will be an empty set."""
+        self.enabled_capabilities = set()
+        """A set containing the IRCv3 capabilities that the bot has enabled."""
+        self._cap_reqs = dict()
+        """A dictionary of capability requests
+
+        Maps the capability name to a tuple of the prefix ('-', '=', or ''),
+        the name of the requesting module, and the function to call if the
+        request is rejected."""
 
         self.privileges = dict()
         """A dictionary of channels to their users and privilege levels
@@ -373,7 +382,7 @@ class Willie(irc.Bot):
                     func_list.remove(func)
 
         hostmask = "%s!%s@%s" % (self.nick, self.user, socket.gethostname())
-        willie = self.WillieWrapper(self, irc.Origin(self, hostmask, []))
+        willie = self.WillieWrapper(self, irc.Origin(self, hostmask, [], {}))
         for obj in variables.itervalues():
             if obj in self.callables:
                 self.callables.remove(obj)
@@ -398,8 +407,31 @@ class Willie(irc.Bot):
             # but we're going to keep it around anyway.
             if not hasattr(func, 'name'):
                 func.name = func.__name__
+
+            def trim_docstring(doc):
+                """Clean up a docstring"""
+                if not doc:
+                    return ''
+                lines = doc.expandtabs().splitlines()
+                indent = sys.maxint
+                for line in lines[1:]:
+                    stripped = line.lstrip()
+                    if stripped:
+                        indent = min(indent, len(line) - len(stripped))
+                trimmed = [lines[0].strip()]
+                if indent < sys.maxint:
+                    for line in lines[1:]:
+                        trimmed.append(line[indent:].rstrip())
+                while trimmed and not trimmed[-1]:
+                    trimmed.pop()
+                while trimmed and not trimmed[0]:
+                    trimmed.pop(0)
+                return '\n'.join(trimmed)
+            doc = trim_docstring(func.__doc__)
+
             # At least for now, only account for the first command listed.
-            if func.__doc__ and hasattr(func, 'commands') and func.commands[0]:
+            if hasattr(func, 'commands') and func.commands[0]:
+                example = None
                 if hasattr(func, 'example'):
                     if isinstance(func.example, basestring):
                         # Support old modules that add the attribute directly.
@@ -408,9 +440,8 @@ class Willie(irc.Bot):
                         # The new format is a list of dicts.
                         example = func.example[0]["example"]
                     example = example.replace('$nickname', str(self.nick))
-                else:
-                    example = None
-                self.doc[func.commands[0]] = (func.__doc__, example)
+                if doc or example:
+                    self.doc[func.commands[0]] = (doc, example)
             self.commands[priority].setdefault(regexp, []).append(func)
 
         def sub(pattern, self=self):
@@ -568,6 +599,11 @@ class Willie(irc.Bot):
             setting ``mode -m`` on the channel ``#example``, args would be
             ``('#example', '-m')``
             """
+            s.tags = origin.tags
+            """A map of the IRCv3 message tags on the message.
+
+            If the message had no tags, or the server does not support IRCv3
+            message tags, this will be an empty dict."""
             if len(self.config.core.get_list('admins')) > 0:
                 s.admin = (origin.nick in
                            [Nick(n) for n in
@@ -764,7 +800,9 @@ class Willie(irc.Bot):
             tag - What the msg will be tagged as. It is recommended to pass
                 __file__ as the tag. If the file exists, a relative path is
                 used as the file. Otherwise the tag is used as it is.
+
             text - Body of the message.
+
             level - Either verbose, warning or always. Configuration option
                 config.verbose which levels are ignored.
 
@@ -801,7 +839,7 @@ class Willie(irc.Bot):
         )
 
         hostmask = "%s!%s@%s" % (self.nick, self.user, socket.gethostname())
-        willie = self.WillieWrapper(self, irc.Origin(self, hostmask, []))
+        willie = self.WillieWrapper(self, irc.Origin(self, hostmask, [], {}))
         for shutdown_method in self.shutdown_methods:
             try:
                 stderr(
@@ -817,6 +855,56 @@ class Willie(irc.Bot):
                     )
                 )
 
+    def cap_req(self, module_name, capability, failure_callback):
+        """Tell Willie to request a capability when it starts.
+
+        By prefixing the capability with `-`, it will be ensured that the
+        capability is not enabled. Simmilarly, by prefixing the capability with
+        `=`, it will be ensured that the capability is enabled. Requiring and
+        disabling is "first come, first served"; if one module requires a
+        capability, and another prohibits it, this function will raise an
+        exception in whichever module loads second. An exception will also be
+        raised if the module is being loaded after the bot has already started,
+        and the request would change the set of enabled capabilities.
+
+        If the capability is not prefixed, and no other module prohibits it, it
+        will be requested.  Otherwise, it will not be requested. Since
+        capability requests that are not mandatory may be rejected by the
+        server, as well as by other modules, a module which makes such a
+        request should account for that possibility.
+
+        The actual capability request to the server is handled after the
+        completion of this function. In the event that the server denies a
+        request, the `failure_callback` function will be called, if provided.
+        The arguments will be a `Willie` object, and the capability which was
+        rejected. This can be used to disable callables which rely on the
+        capability."""
+        #TODO raise better exceptions
+        cap = capability[1:]
+        prefix = capability[0]
+
+        if prefix == '-':
+            if self.connection_registered and cap in self.enabled_capabilities:
+                raise Exception('Can not change capabilities after server '
+                                'connection has been completed.')
+            entry = self._cap_reqs.get(cap, [])
+            if any((ent[0] != '-' for ent in entry)):
+                raise Exception('Capability conflict')
+            entry.append((prefix, module_name, failure_callback))
+            self._cap_reqs[cap] = entry
+        else:
+            if prefix != '=':
+                cap = capability
+                prefix = ''
+            if self.connection_registered and (cap not in
+                                               self.enabled_capabilities):
+                raise Exception('Can not change capabilities after server '
+                                'connection has been completed.')
+            entry = self._cap_reqs.get(cap, [])
+            if any((ent[0] == '-' for ent in entry)):
+                raise Exception('Capability conflict')
+            entry.append((prefix, module_name, failure_callback))
+            self._cap_reqs[cap] = entry
 
 if __name__ == '__main__':
     print __doc__
