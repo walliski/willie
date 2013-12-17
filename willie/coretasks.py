@@ -1,6 +1,6 @@
 # coding=utf-8
 """
-coretasks.py - Willie Ruotine Core tasks
+coretasks.py - Willie Routine Core tasks
 Copyright 2008-2011, Sean B. Palmer (inamidst.com) and Michael Yanovich
 (yanovich.net)
 Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
@@ -29,8 +29,9 @@ def rfc1459_startup(bot, trigger):
 
     251 RPL_LUSERCLIENT is a mandatory message that is sent after client
     connects to the server in rfc1459. RFC2812 does not require it and all
-    networks might not send it. This trigger is for those servers that send
-    251 but not 001.
+    networks might not send it. This trigger is for those servers that send 251
+    but not 001.
+
     """
     if not bot.connection_registered:
         startup(bot, trigger)
@@ -43,8 +44,9 @@ def rfc1459_startup(bot, trigger):
 def startup(bot, trigger):
     """Do tasks related to connecting to the network.
 
-    001 RPL_WELCOME is from RFC2812 and is the first message that is sent
-    after the connection has been registered on the network.
+    001 RPL_WELCOME is from RFC2812 and is the first message that is sent after
+    the connection has been registered on the network.
+
     """
     bot.connection_registered = True
 
@@ -77,9 +79,11 @@ def startup(bot, trigger):
 @willie.module.rule('.*')
 @willie.module.priority('high')
 def retry_join(bot, trigger):
-    """
+    """Give NickServer enough time to identify on a +R channel.
+
     Give NickServ enough time to identify, and retry rejoining an
     identified-only (+R) channel. Maximum of ten rejoin attempts.
+
     """
     channel = trigger.args[1]
     if channel in bot.memory['retry_join'].keys():
@@ -103,7 +107,7 @@ def retry_join(bot, trigger):
 @willie.module.thread(False)
 @willie.module.unblockable
 def handle_names(bot, trigger):
-    ''' Handle NAMES response, happens when joining to channels'''
+    """Handle NAMES response, happens when joining to channelsi."""
     names = re.split(' ', trigger)
     channels = re.search('([#!]\S*)', bot.raw)
     if (channels is None):
@@ -144,7 +148,7 @@ def handle_names(bot, trigger):
 @willie.module.event('MODE')
 @willie.module.unblockable
 def track_modes(bot, trigger):
-    ''' Track usermode changes and keep our lists of ops up to date '''
+    """Track usermode changes and keep our lists of ops up to date."""
     line = trigger.args
 
     # If the first character of where the mode is being set isn't a #
@@ -221,7 +225,7 @@ def track_modes(bot, trigger):
 @willie.module.event('NICK')
 @willie.module.unblockable
 def track_nicks(bot, trigger):
-    '''Track nickname changes and maintain our chanops list accordingly'''
+    """Track nickname changes and maintain our chanops list accordingly."""
     old = trigger.nick
     new = Nick(trigger)
 
@@ -282,7 +286,13 @@ def track_kick(bot, trigger):
         bot.channels.remove(trigger.sender)
         del bot.privileges[trigger.sender]
     else:
-        del bot.privileges[trigger.sender][nick]
+        # Temporary fix to stop KeyErrors from being sent to channel
+        # The privileges dict may not have all nicks stored at all times
+        # causing KeyErrors
+        try:
+            del bot.privileges[trigger.sender][nick]
+        except KeyError:
+            pass
 
 
 @willie.module.rule('.*')
@@ -343,16 +353,26 @@ def recieve_cap_ls_reply(bot, trigger):
     if 'multi-prefix' not in bot._cap_reqs:
         # Whether or not the server supports multi-prefix doesn't change how we
         # parse it, so we don't need to worry if it fails.
-        bot._cap_reqs['multi-prefix'] = ['', 'coretasks', None]
+        bot._cap_reqs['multi-prefix'] = (['', 'coretasks', None],)
 
-    for cap, req in bot._cap_reqs.iteritems():
+    for cap, reqs in bot._cap_reqs.iteritems():
+        # At this point, we know mandatory and prohibited don't co-exist, but
+        # we need to call back for optionals if they're also prohibited
+        prefix = ''
+        for entry in reqs:
+            if prefix == '-' and entry[0] != '-':
+                entry[2](bot, entry[0] + cap)
+                continue
+            if entry[0]:
+                prefix = entry[0]
+
         # It's not required, or it's supported, so we can request it
-        if req[0] != '=' or cap in bot.server_capabilities:
+        if prefix != '=' or cap in bot.server_capabilities:
             # REQs fail as a whole, so we send them one capability at a time
-            bot.write(('CAP', 'REQ', req[0] + cap))
+            bot.write(('CAP', 'REQ', entry[0] + cap))
         elif req[2]:
             # Server is going to fail on it, so we call the failure function
-            req[2](bot, req[0] + cap)
+            req[2](bot, entry[0] + cap)
 
     # If we want to do SASL, we have to wait before we can send CAP END. So if
     # we are, wait on 903 (SASL successful) to send it.
@@ -397,9 +417,10 @@ def sasl_success(bot, trigger):
 @willie.module.thread(False)
 @willie.module.unblockable
 def blocks(bot, trigger):
-    """
-    Manage Willie's blocking features.
+    """Manage Willie's blocking features.
+
     https://github.com/embolalia/willie/wiki/Making-Willie-ignore-people
+
     """
     if not trigger.admin:
         return

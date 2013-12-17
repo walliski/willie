@@ -17,10 +17,6 @@ import os
 mangle_lines = {}
 
 
-def setup(bot):
-    random.seed()
-
-
 def configure(config):
     """
 
@@ -58,8 +54,8 @@ def translate(text, input='auto', output='en'):
         pass
     text = urllib2.quote(text)
     result = opener.open('http://translate.google.com/translate_a/t?' +
-        ('client=t&sl=%s&tl=%s' % (input, output)) +
-        ('&q=%s' % text)).read()
+                         ('client=t&sl=%s&tl=%s' % (input, output)) +
+                         ('&q=%s' % text)).read()
 
     while ',,' in result:
         result = result.replace(',,', ',null,')
@@ -109,6 +105,8 @@ def tr(bot, trigger):
 
 
 @commands('translate', 'tr')
+@example('.tr :en :fr my dog', '"mon chien" (en to fr, translate.google.com)')
+@example('.tr mon chien', '"my dog" (fr to en, translate.google.com)')
 def tr2(bot, trigger):
     """Translates a phrase, with an optional language hint."""
     command = trigger.group(2).encode('utf-8')
@@ -176,7 +174,7 @@ def mangle(bot, trigger):
     if phrase[0] == '':
         bot.reply("What do you want me to mangle?")
         return
-    if bot.config.has_section('translate') and bot.config.translate.research == True:
+    if bot.config.has_section('translate') and bot.config.translate.research:
         research_logfile = open(os.path.join(bot.config.logdir, 'mangle.log'), 'a')
         research_logfile.write('Phrase: %s\n' % str(phrase))
         research_logfile.write('Lang_list: %s\n' % lang_list)
@@ -196,12 +194,12 @@ def mangle(bot, trigger):
             phrase = backup
             continue
 
-        if bot.config.has_section('translate') and bot.config.translate.research == True:
+        if bot.config.has_section('translate') and bot.config.translate.research:
             research_logfile.write('-> %s\n' % str(phrase))
         if not phrase:
             phrase = backup
             break
-    if bot.config.has_section('translate') and bot.config.translate.research == True:
+    if bot.config.has_section('translate') and bot.config.translate.research:
         research_logfile.write('->[FINAL] %s\n' % str(phrase))
         research_logfile.write('----------------------------\n\n\n')
         research_logfile.close()
@@ -211,6 +209,11 @@ def mangle(bot, trigger):
 @rule('(.*)')
 @priority('low')
 def collect_mangle_lines(bot, trigger):
-    if bot.config.has_section('translate') and bot.config.translate.collect_mangle_lines == True:
+    if bot.config.has_section('translate') and bot.config.translate.collect_mangle_lines:
         global mangle_lines
         mangle_lines[trigger.sender.lower()] = "%s said '%s'" % (trigger.nick, (trigger.group(0).strip()))
+
+
+if __name__ == "__main__":
+    from willie.test_tools import run_example_tests
+    run_example_tests(__file__)

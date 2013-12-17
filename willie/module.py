@@ -15,11 +15,13 @@ willie.module.example
 willie/module.py - Willie IRC Bot (http://willie.dftba.net/)
 Copyright 2013, Ari Koivula, <ari@koivu.la>
 Copyright © 2013, Elad Alfassa <elad@fedoraproject.org>
+Copyright 2013, Lior Ramati <firerogue517@gmail.com>
 
 Licensed under the Eiffel Forum License 2.
 """
 
 import willie.test_tools
+import functools
 
 NOLIMIT = 1
 """Return value for ``callable``\s, which supresses rate limiting for the call.
@@ -39,21 +41,22 @@ OWNER = 16
 
 
 def unblockable(function):
-    """Decorator. Equivalent to func.unblockable = True
+    """Decorator. Equivalent to func.unblockable = True.
 
     If this decorator is used, the function will be called, even if the bot has
     been configured to ignore commands from the user. This can be used to
     ensure events such as JOIN are always recorded.
+
     """
     function.unblockable = True
     return function
 
 
 def interval(*args):
-    """Decorator. Equivalent to func.interval.append(value)
+    """Decorator. Equivalent to func.interval.append(value).
 
-    A function that uses this decorator will be called every X seconds, where
-    X is the argument. This decorator can be used multiple times for multiple
+    A function that uses this decorator will be called every X seconds, where X
+    is the argument. This decorator can be used multiple times for multiple
     intervals, or all intervals can be given at once as arguments. The first
     time the function will be called is X seconds after the bot was started.
 
@@ -71,6 +74,7 @@ def interval(*args):
         def spam_every_5s(bot):
             if "#here" in bot.channels:
                 bot.msg("#here", "It has been five seconds!")
+
     """
     def add_attribute(function):
         if not hasattr(function, "interval"):
@@ -102,6 +106,7 @@ def rule(value):
     values would be joined together to form a singular regular expression.
     However, these kinds of rules add no functionality over simple regular
     expressions, and are considered deprecated in 3.1.
+
     """
     def add_attribute(function):
         if not hasattr(function, "rule"):
@@ -122,6 +127,7 @@ def thread(value):
     Args:
         value: Either True or False. If True the function is called in
             a separate thread. If False from the main thread.
+
     """
     def add_attribute(function):
         function.thread = value
@@ -133,6 +139,7 @@ def name(value):
     """Decorator. Equivalent to func.name = value.
 
     This attribute is considered deprecated in 3.1.
+
     """
     raise DeprecationWarning("This attribute is considered deprecated in 3.1."
                              " Replace tuple-form .rule with a regexp.")
@@ -141,10 +148,10 @@ def name(value):
 def commands(*command_list):
     """Decorator. Sets a command list for a callable.
 
-    This decorator can be used to add multiple commands to one callable in
-    a single line. The resulting match object will have the command as the
-    first group, rest of the line, excluding leading whitespace, as the second
-    group. Parameters 1 through 4, seperated by whitespace, will be groups 3-6.
+    This decorator can be used to add multiple commands to one callable in a
+    single line. The resulting match object will have the command as the first
+    group, rest of the line, excluding leading whitespace, as the second group.
+    Parameters 1 through 4, seperated by whitespace, will be groups 3-6.
 
     Args:
         command: A string, which can be a regular expression.
@@ -161,6 +168,7 @@ def commands(*command_list):
         @commands('j', 'join')
             If the command prefix is "\.", this would trigger on lines starting
             with either ".j" or ".join".
+
     """
     def add_attribute(function):
         if not hasattr(function, "commands"):
@@ -175,8 +183,8 @@ def nickname_commands(*command_list):
 
     This decorator can be used multiple times to add multiple rules. The
     resulting match object will have the command as the first group, rest of
-    the line, excluding leading whitespace, as the second group. Parameters
-    1 through 4, seperated by whitespace, will be groups 3-6.
+    the line, excluding leading whitespace, as the second group. Parameters 1
+    through 4, seperated by whitespace, will be groups 3-6.
 
     Args:
         command: A string, which can be a regular expression.
@@ -194,6 +202,7 @@ def nickname_commands(*command_list):
             Would trigger on anything starting with "$nickname[:,]? ", and
             would have never have any additional parameters, as the command
             would match the rest of the line.
+
     """
     def add_attribute(function):
         if not hasattr(function, "rule"):
@@ -228,6 +237,7 @@ def priority(value):
 
     Priority allows you to control the order of callable execution, if your
     module needs it.
+
     """
     def add_attribute(function):
         function.priority = value
@@ -243,6 +253,7 @@ def event(value):
     these events, the function will execute. Note that functions with an event
     must also be given a rule to match (though it may be '.*', which will
     always match) or they will not be triggered.
+
     """
     def add_attribute(function):
         function.event = value
@@ -259,6 +270,7 @@ def rate(value):
     a function is given a rate of 20, a single user may only use that function
     once every 20 seconds. This limit applies to each user individually. Users
     on the admin list in Willie’s configuration are exempted from rate limits.
+
     """
     def add_attribute(function):
         function.rate = value
@@ -266,11 +278,33 @@ def rate(value):
     return add_attribute
 
 
-class example(object):
-    """Decorator. Add an example attribute into a function and generate a test.
+def require_privmsg(function):
     """
+    Decorator, this allows functions to specify if they should be only
+    allowed via private message.
+    """
+    @functools.wraps(function)
+    def _nop(*args, **kwargs):
+        # Assign trigger and bot for easy access later
+        bot, trigger = args[0:2]
+        if trigger.is_privmsg:
+            return function(*args, **kwargs)
+        bot.reply('This command can only be executed via PM \
+                  (Private Message)')
+        return
+    return _nop
+
+
+class example(object):
+
+    """Decorator. Add an example.
+
+    Add an example attribute into a function and generate a test.
+
+    """
+
     def __init__(self, msg, result=None, privmsg=False, admin=False,
-                 owner=False, repeat=1, re=None):
+                 owner=False, repeat=1, re=False):
         """Accepts arguments for the decorator.
 
         Args:
@@ -284,19 +318,14 @@ class example(object):
             repeat - How many times to repeat the test. Usefull for tests that
                 return random stuff.
             re - Bool. If true, result is interpreted as a regular expression.
+
         """
-        # Argument re is a result in regular expression form. Giving both it
-        # and non-regular expression form makes no sense and it is not possible
-        # to know which should be used.
-        assert not (result and re)
         # Wrap result into a list for get_example_test
-        self.result = None
-        self.use_re = False
         if result is not None:
             self.result = [result]
-        elif re is not None:
-            self.result = [re]
-            self.use_re = True
+            self.use_re = re
+        else:
+            self.result = None
         self.msg = msg
         self.privmsg = privmsg
         self.admin = admin

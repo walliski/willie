@@ -62,9 +62,9 @@ class Willie(irc.Bot):
         self._cap_reqs = dict()
         """A dictionary of capability requests
 
-        Maps the capability name to a tuple of the prefix ('-', '=', or ''),
-        the name of the requesting module, and the function to call if the
-        request is rejected."""
+        Maps the capability name to a list of tuples of the prefix ('-', '=',
+        or ''), the name of the requesting module, and the function to call if
+        the request is rejected."""
 
         self.privileges = dict()
         """A dictionary of channels to their users and privilege levels
@@ -110,15 +110,19 @@ class Willie(irc.Bot):
         self.setup()
 
     class JobScheduler(threading.Thread):
+
         """Calls jobs assigned to it in steady intervals.
 
-        JobScheduler is a thread that keeps track of Jobs and calls them
-        every X seconds, where X is a property of the Job. It maintains jobs
-        in a priority queue, where the next job to be called is always the
-        first item. Thread safety is maintained with a mutex that is released
-        during long operations, so methods add_job and clear_jobs can be
-        safely called from the main thread.
+        JobScheduler is a thread that keeps track of Jobs and calls them every
+        X seconds, where X is a property of the Job. It maintains jobs in a
+        priority queue, where the next job to be called is always the first
+        item.
+        Thread safety is maintained with a mutex that is released during long
+        operations, so methods add_job and clear_jobs can be safely called from
+        the main thread.
+
         """
+
         min_reaction_time = 30.0  # seconds
         """How often should scheduler checks for changes in the job list."""
 
@@ -202,16 +206,19 @@ class Willie(irc.Bot):
                 self.bot.error()
 
     class Job(object):
-        """
-        Job is a simple structure that hold information about
-        when a function should be called next. They can be put in
-        a priority queue, in which case the Job that should be
-        executed next is returned.
 
-        Calling the method next modifies the Job object for the
-        next time it should be executed. Current time is used to
-        decide when the job should be executed next so it should
-        only be called right after the function was called.
+        """Hold information about when a function should be called next.
+
+        Job is a simple structure that hold information about when a function
+        should be called next.
+        They can be put in a priority queue, in which case the Job that should
+        be executed next is returned.
+
+        Calling the method next modifies the Job object for the next time it
+        should be executed. Current time is used to decide when the job should
+        be executed next so it should only be called right after the function
+        was called.
+
         """
 
         max_catchup = 5
@@ -227,6 +234,7 @@ class Willie(irc.Bot):
             Args:
                 interval: number of seconds between calls to func
                 func: function to be called
+
             """
             self.next_time = time.time() + interval
             self.interval = interval
@@ -236,6 +244,7 @@ class Willie(irc.Bot):
             """Update self.next_time with the assumption func was just called.
 
             Returns: A modified job object.
+
             """
             last_time = self.next_time
             current_time = time.time()
@@ -267,6 +276,7 @@ class Willie(irc.Bot):
 
             Example result:
                 <Job(2013-06-14 11:01:36.884000, 20s, <function upper at 0x02386BF0>)>
+
             """
             iso_time = str(datetime.fromtimestamp(self.next_time))
             return "<Job(%s, %ss, %s)>" % \
@@ -328,6 +338,7 @@ class Willie(irc.Bot):
         Object must be both be callable and have hashable. Furthermore, it must
         have either "commands", "rule" or "interval" as attributes to mark it
         as a willie callable.
+
         """
         if not callable(obj):
             # Check is to help distinguish between willie callables and objects
@@ -344,6 +355,7 @@ class Willie(irc.Bot):
         """Return true if object is a willie shutdown method.
 
         Object must be both be callable and named shutdown.
+
         """
         if (callable(obj) and
                 hasattr(obj, "name")
@@ -352,11 +364,13 @@ class Willie(irc.Bot):
         return False
 
     def register(self, variables):
-        """
+        """Register all willie callables.
+
         With the ``__dict__`` attribute from a Willie module, update or add the
         trigger commands and rules, to allow the function to be triggered, and
         shutdown methods, to allow the modules to be notified when willie is
         quitting.
+
         """
         for obj in variables.itervalues():
             if self.is_callable(obj):
@@ -373,6 +387,7 @@ class Willie(irc.Bot):
 
         Args:
         variables -- A list of callable objects from a willie module.
+
         """
 
         def remove_func(func, commands):
@@ -556,6 +571,12 @@ class Willie(irc.Bot):
     class Trigger(unicode):
         def __new__(cls, text, origin, bytes, match, event, args, self):
             s = unicode.__new__(cls, text)
+
+            """Is trigger from a channel or in PM"""
+            s.is_privmsg = False
+            if origin.sender is not None and origin.sender[0] not in '#&+!':
+                s.is_privmsg = True
+
             s.sender = origin.sender
             """
             The channel (or nick, in a private message) from which the
@@ -807,6 +828,7 @@ class Willie(irc.Bot):
                 config.verbose which levels are ignored.
 
         Returns: True if message was sent.
+
         """
         if not self.config.core.verbose:
             self.config.core.verbose = 'warning'
@@ -878,7 +900,9 @@ class Willie(irc.Bot):
         request, the `failure_callback` function will be called, if provided.
         The arguments will be a `Willie` object, and the capability which was
         rejected. This can be used to disable callables which rely on the
-        capability."""
+        capability.
+
+        """
         #TODO raise better exceptions
         cap = capability[1:]
         prefix = capability[0]
@@ -901,7 +925,9 @@ class Willie(irc.Bot):
                 raise Exception('Can not change capabilities after server '
                                 'connection has been completed.')
             entry = self._cap_reqs.get(cap, [])
-            if any((ent[0] == '-' for ent in entry)):
+            # Non-mandatory will callback at the same time as if the server
+            # rejected it.
+            if any((ent[0] == '-' for ent in entry)) and prefix == '=':
                 raise Exception('Capability conflict')
             entry.append((prefix, module_name, failure_callback))
             self._cap_reqs[cap] = entry
