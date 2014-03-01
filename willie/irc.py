@@ -13,6 +13,8 @@ When working on core IRC protocol related features, consult protocol
 documentation at http://www.irchelp.org/irchelp/rfc/
 """
 from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import absolute_import
 
 import sys
 import re
@@ -23,18 +25,25 @@ import asynchat
 import os
 import codecs
 import traceback
-from tools import stderr, Nick
+from willie.tools import stderr, Nick
 try:
     import select
     import ssl
     has_ssl = True
-except:
+except ImportError:
     #no SSL support
     has_ssl = False
+if has_ssl:
+    if not hasattr(ssl, 'match_hostname'):
+        # Attempt to import ssl_match_hostname from python-backports
+        import backports.ssl_match_hostname
+        ssl.match_hostname = backports.ssl_match_hostname.match_hostname
+        ssl.CertificateError = backports.ssl_match_hostname.CertificateError
 import errno
 import threading
 from datetime import datetime
-from tools import verify_ssl_cn
+if sys.version_info.major >= 3:
+    unicode = str
 
 
 class Origin(object):
@@ -130,7 +139,7 @@ class Bot(asynchat.async_chat):
         if not os.path.isdir(self.config.core.logdir):
             try:
                 os.mkdir(self.config.core.logdir)
-            except Exception, e:
+            except Exception as e:
                 stderr('There was a problem creating the logs directory.')
                 stderr('%s %s' % (str(e.__class__), str(e)))
                 stderr('Please fix this and then run Willie again.')
@@ -201,7 +210,7 @@ class Bot(asynchat.async_chat):
     def run(self, host, port=6667):
         try:
             self.initiate_connect(host, port)
-        except socket.error, e:
+        except socket.error as e:
             stderr('Connection error: %s' % e.strerror)
             self.hasquit = True
 
@@ -221,7 +230,7 @@ class Bot(asynchat.async_chat):
         try:
             asyncore.loop()
         except KeyboardInterrupt:
-            print 'KeyboardInterrupt'
+            print('KeyboardInterrupt')
             self.quit('KeyboardInterrupt')
 
     def quit(self, message):
@@ -268,56 +277,19 @@ class Bot(asynchat.async_chat):
         if self.config.core.use_ssl and has_ssl:
             if not self.config.core.verify_ssl:
                 self.ssl = ssl.wrap_socket(self.socket,
-                                           do_handshake_on_connect=False,
+                                           do_handshake_on_connect=True,
                                            suppress_ragged_eofs=True)
             else:
-                verification = verify_ssl_cn(self.config.host,
-                                             int(self.config.port))
-                if verification is 'NoCertFound':
-                    stderr('Can\'t get server certificate, SSL might be '
-                           'disabled on the server.')
-                    os.unlink(self.config.pid_file_path)
-                    os._exit(1)
-                elif verification is not None:
-                    stderr('\nSSL Cert information: %s' % verification[1])
-                    if verification[0] is False:
-                        stderr("Invalid certficate, CN mismatch!")
-                        os.unlink(self.config.pid_file_path)
-                        os._exit(1)
-                else:
-                    stderr('WARNING! certficate information and CN validation '
-                           'are not avilable. Is pyOpenSSL installed?')
-                    stderr('Trying to connect anyway:')
                 self.ssl = ssl.wrap_socket(self.socket,
-                                           do_handshake_on_connect=False,
+                                           do_handshake_on_connect=True,
                                            suppress_ragged_eofs=True,
                                            cert_reqs=ssl.CERT_REQUIRED,
                                            ca_certs=self.ca_certs)
-            stderr('\nSSL Handshake intiated...')
-            error_count = 0
-            while True:
                 try:
-                    self.ssl.do_handshake()
-                    break
-                except ssl.SSLError, err:
-                    if err.args[0] == ssl.SSL_ERROR_WANT_READ:
-                        select.select([self.ssl], [], [])
-                    elif err.args[0] == ssl.SSL_ERROR_WANT_WRITE:
-                        select.select([], [self.ssl], [])
-                    elif err.args[0] == 1:
-                        stderr('SSL Handshake failed with error: %s' %
-                               err.args[1])
-                        os._exit(1)
-                    else:
-                        error_count = error_count + 1
-                        if error_count > 5:
-                            stderr('SSL Handshake failed (%d failed attempts)'
-                                   % error_count)
-                            os._exit(1)
-                        raise
-                except Exception as e:
-                    print >> sys.stderr, ('SSL Handshake failed with error: %s'
-                                          % e)
+                    ssl.match_hostname(self.ssl.getpeercert(), self.config.host)
+                except ssl.CertificateError:
+                    stderr("Invalid certficate, hostname mismatch!")
+                    os.unlink(self.config.pid_file_path)
                     os._exit(1)
             self.set_socket(self.ssl)
 
@@ -366,11 +338,11 @@ class Bot(asynchat.async_chat):
         try:
             result = self.socket.send(data)
             return result
-        except ssl.SSLError, why:
+        except ssl.SSLError as why:
             if why[0] in (asyncore.EWOULDBLOCK, errno.ESRCH):
                 return 0
             else:
-                raise ssl.SSLError, why
+                raise why
             return 0
 
     def _ssl_recv(self, buffer_size):
@@ -385,7 +357,7 @@ class Bot(asynchat.async_chat):
                 self.handle_close()
                 return ''
             return data
-        except ssl.SSLError, why:
+        except ssl.SSLError as why:
             if why[0] in (asyncore.ECONNRESET, asyncore.ENOTCONN,
                           asyncore.ESHUTDOWN):
                 self.handle_close()
@@ -524,14 +496,15 @@ class Bot(asynchat.async_chat):
         """Called internally when a module causes an error."""
         try:
             trace = traceback.format_exc()
-            trace = trace.decode('utf-8', errors='xmlcharrefreplace')
+            if sys.version_info.major < 3:
+                trace = trace.decode('utf-8', errors='xmlcharrefreplace')
             stderr(trace)
             try:
                 lines = list(reversed(trace.splitlines()))
                 report = [lines[0].strip()]
                 for line in lines:
                     line = line.strip()
-                    if line.startswith('File "/'):
+                    if line.startswith('File "'):
                         report.append(line[0].lower() + line[1:])
                         break
                 else:
@@ -656,7 +629,3 @@ class Bot(asynchat.async_chat):
             self.ops[channel] = set()
         if not channel in self.voices:
             self.voices[channel] = set()
-
-
-if __name__ == "__main__":
-    print __doc__
