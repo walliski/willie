@@ -155,10 +155,13 @@ class Bot(asynchat.async_chat):
 
     def safe(self, string):
         """Remove newlines from a string."""
+        if sys.version_info.major >=3 and isinstance(string, bytes):
+                string = string.decode('utf8')
+        elif sys.version_info.major < 3:
+            if not isinstance(string, unicode):
+                string = unicode(string, encoding='utf8')
         string = string.replace('\n', '')
         string = string.replace('\r', '')
-        if not isinstance(string, unicode):
-            string = unicode(string, encoding='utf8')
         return string
 
     def write(self, args, text=None):
@@ -199,9 +202,9 @@ class Bot(asynchat.async_chat):
             #provision for continuation of message lines.
 
             if text is not None:
-                temp = (u' '.join(args) + ' :' + text)[:510] + '\r\n'
+                temp = (' '.join(args) + ' :' + text)[:510] + '\r\n'
             else:
-                temp = u' '.join(args)[:510] + '\r\n'
+                temp = ' '.join(args)[:510] + '\r\n'
             self.log_raw(temp, '>>')
             self.send(temp.encode('utf-8'))
         finally:
@@ -392,7 +395,7 @@ class Bot(asynchat.async_chat):
         line = self.buffer
         if line.endswith('\r'):
             line = line[:-1]
-        self.buffer = u''
+        self.buffer = ''
         self.raw = line
 
         # Break off IRCv3 message tags, if present
@@ -441,7 +444,11 @@ class Bot(asynchat.async_chat):
         # messages will be split. Otherwise, we'd have to acocunt for the bot's
         # hostmask, which is hard.
         max_text_length = 400
-        encoded_text = text.encode('utf-8')
+        # Encode to bytes, for propper length calculation
+        if isinstance(text, unicode):
+            encoded_text = text.encode('utf-8')
+        else:
+            encoded_text = text
         excess = ''
         if max_messages > 1 and len(encoded_text) > max_text_length:
             last_space = encoded_text.rfind(' ', 0, max_text_length)
@@ -451,9 +458,9 @@ class Bot(asynchat.async_chat):
             else:
                 excess = encoded_text[last_space + 1:]
                 encoded_text = encoded_text[:last_space]
-            # Back to unicode again, so we don't screw things up later.
-            text = encoded_text.decode('utf-8')
         # We'll then send the excess at the end
+        # Back to unicode again, so we don't screw things up later.
+        text = encoded_text.decode('utf-8')
         try:
             self.sending.acquire()
 
@@ -469,6 +476,8 @@ class Bot(asynchat.async_chat):
 
             # Loop detection
             messages = [m[1] for m in self.stack[-8:]]
+            if sys.version_info.major < 3 and isinstance(text, str):
+                text = text.decode('utf-8')
             if messages.count(text) >= 5:
                 text = '...'
                 if messages.count('...') >= 3:
@@ -512,44 +521,27 @@ class Bot(asynchat.async_chat):
 
                 signature = '%s (%s)' % (report[0], report[1])
                 # TODO: make not hardcoded
-                log_filename = os.path.join(
-                    self.config.logdir, 'exceptions.log'
-                )
-                with codecs.open(
-                    log_filename, 'a', encoding='utf-8'
-                ) as logfile:
-                    logfile.write(u'Signature: %s\n' % signature)
+                log_filename = os.path.join(self.config.logdir, 'exceptions.log')
+                with codecs.open(log_filename, 'a', encoding='utf-8') as logfile:
+                    logfile.write('Signature: %s\n' % signature)
                     if origin:
-                        logfile.write(
-                            u'from %s at %s:\n' % (
-                                origin.sender, str(datetime.now())
-                            )
-                        )
+                        logfile.write('from %s at %s:\n' % (origin.sender, str(datetime.now())))
                     if trigger:
-                        logfile.write(
-                            u'Message was: <%s> %s\n' % (
-                                trigger.nick, trigger.group(0)
-                            )
-                        )
+                        logfile.write('Message was: <%s> %s\n' % (trigger.nick, trigger.group(0)))
                     logfile.write(trace)
                     logfile.write(
                         '----------------------------------------\n\n'
                     )
             except Exception as e:
                 stderr("Could not save full traceback!")
-                self.debug(__file__, "(From: " + origin.sender +
-                           "), can't save traceback: " + str(e), 'always')
+                self.debug(__file__, "(From: " + origin.sender + "), can't save traceback: " + str(e), 'always')
 
             if origin:
                 self.msg(origin.sender, signature)
         except Exception as e:
             if origin:
                 self.msg(origin.sender, "Got an error.")
-                self.debug(
-                    __file__,
-                    "(From: " + origin.sender + ") " + str(e),
-                    'always'
-                )
+                self.debug(__file__, "(From: " + origin.sender + ") " + str(e), 'always')
 
     def handle_error(self):
         """Handle any uncaptured error in the core.
