@@ -195,7 +195,10 @@ def check_callbacks(bot, trigger, url, run=True):
     # Check if it matches the exclusion list first
     matched = any(regex.search(url) for regex in bot.memory['url_exclude'])
     # Then, check if there's anything in the callback list
-    for regex, function in bot.memory['url_callbacks'].iteritems():
+
+	#This is old:
+	#for regex, function in bot.memory['url_callbacks'].iteritems():
+    for regex, function in tools.iteritems(bot.memory['url_callbacks']):
         match = regex.search(url)
         if match:
             if run:
