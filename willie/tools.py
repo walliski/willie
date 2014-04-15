@@ -43,6 +43,7 @@ else:
     itervalues = dict.itervalues
     iterkeys   = dict.iterkeys
 
+_channel_prefixes = ('#', '&', '+', '!')
 
 class ExpressionEvaluator:
 
@@ -151,7 +152,7 @@ def get_command_regexp(prefix, command):
     # The only differences should be handling all whitespace
     # like spaces and the addition of groups 3-6.
     pattern = r"""
-        {prefix}({command}) # Command as group 1.
+        (?:{prefix})({command}) # Command as group 1.
         (?:\s+              # Whitespace to end command.
         (                   # Rest of the line as group 2.
         (?:(\S+))?          # Parameters 1-4 as groups 3-6.
@@ -228,8 +229,7 @@ class Ddict(dict):
 
 
 class Nick(unicode):
-
-    """A `unicode` subclass which acts appropriately for an IRC nickname.
+    """A `unicode` subclass which acts appropriately for IRC identifiers.
 
     When used as normal `unicode` objects, case will be preserved.
     However, when comparing two Nick objects, or comparing a Nick object with a
@@ -298,6 +298,11 @@ class Nick(unicode):
 
     def __ne__(self, other):
         return not (self == other)
+
+    def is_nick(self):
+        """Returns True if the Identifier is a nickname (as opposed to channel)
+        """
+        return self and not self.startswith(_channel_prefixes)
 
 
 class OutputRedirect:
