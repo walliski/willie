@@ -170,6 +170,9 @@ def track_modes(bot, trigger):
     channel = Nick(trigger.args[0])
     line = trigger.args[1:]
 
+    # Remove any empty elements from the list.
+    line = filter(None, line)
+
     # If the first character of where the mode is being set isn't a #
     # then it's a user mode, not a channel mode, so we'll ignore it.
     if channel.is_nick():
