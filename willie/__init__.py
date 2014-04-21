@@ -33,8 +33,10 @@ def run(config):
     # Inject ca_certs from config to web for SSL validation of web requests
     if hasattr(config, 'ca_certs') and config.ca_certs is not None:
         web.ca_certs  = config.ca_certs
-    else:
+    elif os.path.isfile('/etc/pki/tls/certs/ca-bundle.crt'):
         web.ca_certs = '/etc/pki/tls/certs/ca-bundle.crt'
+    else:  #Ubuntu...
+        web.ca_certs = '/etc/ssl/certs/ca-certificates.crt'
 
     def signal_handler(sig, frame):
         if sig == signal.SIGUSR1 or sig == signal.SIGTERM:
