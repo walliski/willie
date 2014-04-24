@@ -35,7 +35,7 @@ def run(config):
         web.ca_certs  = config.ca_certs
     elif os.path.isfile('/etc/pki/tls/certs/ca-bundle.crt'):
         web.ca_certs = '/etc/pki/tls/certs/ca-bundle.crt'
-    else:  #Ubuntu...
+    else:  #Ubuntu & Arch...
         web.ca_certs = '/etc/ssl/certs/ca-certificates.crt'
 
     def signal_handler(sig, frame):
