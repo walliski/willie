@@ -36,7 +36,7 @@ def run(config):
         web.ca_certs  = config.ca_certs
     elif os.path.isfile('/etc/pki/tls/certs/ca-bundle.crt'):
         web.ca_certs = '/etc/pki/tls/certs/ca-bundle.crt'
-    elif os.path.isfile('/etc/ssl/certs/ca-certificates.crt'):  #Ubuntu...
+    elif os.path.isfile('/etc/ssl/certs/ca-certificates.crt'):  #Ubuntu & Arch...
         web.ca_certs = '/etc/ssl/certs/ca-certificates.crt'
     if not os.path.isfile(web.ca_certs):
         stderr('Could not open CA certificates file. SSL will not '
