@@ -409,11 +409,16 @@ def read_feeds(bot, force=False):
             feed.name, status, fp.version, len(fp.entries)), 'verbose')
 
         # check for malformed XML
-        if fp.bozo and fp.bozo_exception != CharacterEncodingOverride:
-            bot.debug(__file__, "Got malformed feed on {0}, disabling ({1})".format(
-                feed.name, fp.bozo_exception.getMessage()), 'warning')
-            disable_feed()
-            continue
+        if fp.bozo:
+            # The bozo_exception will be a string or something in case some automatic
+            # fallbacks works... Only if they fail it will fail completly...
+            try:
+                bot.debug(__file__, "Got malformed feed on {0}, disabling ({1})".format(
+                    feed.name, fp.bozo_exception.getMessage()), 'warning')
+                disable_feed()
+                continue
+            except AttributeError:
+               pass
 
         # check HTTP status
         if status == 301:  # MOVED_PERMANENTLY
