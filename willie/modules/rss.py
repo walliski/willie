@@ -408,7 +408,7 @@ def read_feeds(bot, force=False):
             feed.name, status, fp.version, len(fp.entries)), 'verbose')
 
         # check for malformed XML
-        if fp.bozo:
+        if fp.bozo and fp.bozo_exception != CharacterEncodingOverride:
             bot.debug(__file__, "Got malformed feed on {0}, disabling ({1})".format(
                 feed.name, fp.bozo_exception.getMessage()), 'warning')
             disable_feed()
