@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding=utf8
 """
 calc.py - Willie Calculator Module
 Copyright 2008, Sean B. Palmer, inamidst.com
@@ -65,7 +65,8 @@ def wa(bot, trigger):
     query = trigger.group(2)
     uri = 'http://tumbolia.appspot.com/wa/'
     try:
-        answer = web.get(uri + web.quote(query).replace('+', '%2B'), 45)
+        answer = web.get(uri + web.quote(query.replace('+', 'plus')), 45,
+                         dont_decode=True)
     except timeout as e:
         return bot.say('[WOLFRAM ERROR] Request timed out')
     if answer:

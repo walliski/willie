@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# coding=utf8
 """
 meetbot.py - Willie meeting logger module
 Copyright © 2012, Elad Alfassa, <elad@fedoraproject.org>
@@ -6,6 +6,7 @@ Licensed under the Eiffel Forum License 2.
 
 This module is an attempt to implement at least some of the functionallity of Debian's meetbot
 """
+from __future__ import unicode_literals
 import time
 import os
 from willie.web import quote
@@ -375,10 +376,14 @@ def take_comment(bot, trigger):
     Used in private message only, as `.comment <#channel> <comment to add>`
     https://github.com/embolalia/willie/wiki/Using-the-meetbot-module
     """
-    target, message = trigger.group(2).split(None, 1)
-    target = Nick(target)
     if not trigger.sender.is_nick():
         return
+    if not trigger.group(4):  # <2 arguements were given
+        bot.say('Usage: .comment <#channel> <comment to add>')
+        return
+
+    target, message = trigger.group(2).split(None, 1)
+    target = Nick(target)
     if not ismeetingrunning(target):
         bot.say("There's not currently a meeting in that channel.")
     else:
