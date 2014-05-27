@@ -1,3 +1,4 @@
+# coding=utf8
 """
 github.py - Willie Github Module
 Copyright 2012, Dimitri Molenaars http://tyrope.nl/
@@ -5,6 +6,7 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net/
 """
+from __future__ import unicode_literals
 
 from datetime import datetime
 import sys
@@ -18,7 +20,10 @@ from willie.module import commands, rule, NOLIMIT
 import os
 import re
 
-issueURL = r'https?://(?:www\.)?github.com/([A-z0-9\-]+/[A-z0-9\-]+)/issues/([\d]+)'
+issueURL = (r'https?://(?:www\.)?github.com/'
+             '([A-z0-9\-]+/[A-z0-9\-]+)/'
+             '(?:issues|pull)/'
+             '([\d]+)')
 
 def checkConfig(bot):
     if not bot.config.has_option('github', 'oauth_token') or not bot.config.has_option('github', 'repo'):
@@ -61,7 +66,7 @@ def issue(bot, trigger):
     # parse input
     now = ' '.join(str(datetime.utcnow()).split(' ')).split('.')[0] + ' UTC'
     body = 'Submitted by: %s\nFrom channel: %s\nAt %s' % (trigger.nick, trigger.sender, now)
-    data = {"title": trigger.group(2).encode('utf-8'), "body": body}
+    data = {"title": trigger.group(2), "body": body}
     # submit
     try:
         raw = web.post('https://api.github.com/repos/' + gitAPI[1] + '/issues?access_token=' + gitAPI[0], json.dumps(data))

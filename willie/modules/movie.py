@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# coding=utf8
 """
 imdb.py - Willie Movie Information Module
 Copyright © 2012-2013, Elad Alfassa, <elad@fedoraproject.org>
@@ -6,6 +6,7 @@ Licensed under the Eiffel Forum License 2.
 
 This module relies on imdbapi.com
 """
+from __future__ import unicode_literals
 import json
 import willie.web as web
 import willie.module
@@ -23,7 +24,7 @@ def movie(bot, trigger):
     word = trigger.group(2).rstrip()
     uri = "http://www.imdbapi.com/?t=" + word
     u = web.get(uri, 30)
-    data = json.loads(u.decode('utf-8'))  # data is a Dict containing all the information we need
+    data = json.loads(u)  # data is a Dict containing all the information we need
     if data['Response'] == 'False':
         if 'Error' in data:
             message = '[MOVIE] %s' % data['Error']

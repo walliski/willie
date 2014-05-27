@@ -1,4 +1,4 @@
-#coding: utf8
+# coding=utf8
 """
 url.py - Willie URL title module
 Copyright 2010-2011, Michael Yanovich, yanovich.net, Kenneth Sham
@@ -9,6 +9,7 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 import re
 import sys
@@ -209,7 +210,8 @@ def check_callbacks(bot, trigger, url, run=True):
 
 def find_title(url):
     """Return the title for the given URL."""
-    content, headers = web.get(url, return_headers=True, limit_bytes=max_bytes)
+    content, headers = web.get(url, return_headers=True, limit_bytes=max_bytes,
+                               dont_decode=True)
     content_type = headers.get('Content-Type') or ''
     encoding_match = re.match('.*?charset *= *(\S+)', content_type)
     # If they gave us something else instead, try that

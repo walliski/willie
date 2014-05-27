@@ -1,4 +1,4 @@
-#encoding=utf8
+# coding=utf8
 """currency.py - Willie Exchange Rate Module
 Copyright 2013 Edward Powell, embolalia.com
 Licensed under the Eiffel Forum License 2
@@ -33,7 +33,7 @@ def get_rate(code):
         rates = json.loads(web.get('https://api.bitcoinaverage.com/ticker/all'))
         return 1 / rates['CAD']['24h_avg'], 'Bitcoin—24hr average'
 
-    data = web.get(base_url.format(code))
+    data = web.get(base_url.format(code), dont_decode=True)
     xml = etree.fromstring(data)
     namestring = xml.find('{http://purl.org/rss/1.0/}channel/'
                           '{http://purl.org/rss/1.0/}title').text

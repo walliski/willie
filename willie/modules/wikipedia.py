@@ -1,3 +1,4 @@
+# coding=utf8
 """
 wikipedia.py - Willie Wikipedia Module
 Copyright 2013 Edward Powell - embolalia.net
@@ -5,6 +6,7 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 from willie import web
 from willie.module import NOLIMIT, commands, example
 import json
@@ -56,7 +58,7 @@ def mw_snippet(server, query):
 
     # For some reason, the API gives the page *number* as the key, so we just
     # grab the first page number in the results.
-    snippet = snippet[snippet.keys()[0]]
+    snippet = snippet[list(snippet.keys())[0]]
 
     return snippet['extract']
 
