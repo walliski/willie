@@ -23,19 +23,19 @@ else:
 @commands('c', 'calc')
 @example('.c 5 + 3', '8')
 def c(bot, trigger):
-    """Google calculator."""
+    """Evaluate some calculation."""
     if not trigger.group(2):
         return bot.reply("Nothing to calculate.")
     # Account for the silly non-Anglophones and their silly radix point.
     eqn = trigger.group(2).replace(',', '.')
     try:
-        result = str(eval_equation(eqn))
+        result = eval_equation(eqn)
+        result = "{:.10g}".format(result)
     except ZeroDivisionError:
         result = "Division by zero is not supported in this universe."
-    except Exception:
-        result = ("Sorry, I can't calculate that with this command. "
-                  "I might have another one that can. "
-                  "Use .commands for a list.")
+    except Exception as e:
+        result = "{error}: {msg}".format(
+                error=type(e), msg=e)
     bot.reply(result)
 
 
