@@ -224,7 +224,7 @@ class Bot(asynchat.async_chat):
     def initiate_connect(self, host, port):
         stderr('Connecting to %s:%s...' % (host, port))
         source_address = ((self.config.core.bind_host, 0)
-                          if self.config.core.bind_address else None)
+                          if self.config.core.bind_host else None)
         self.set_socket(socket.create_connection((host, port),
                         source_address=source_address))
         if self.config.core.use_ssl and has_ssl:
@@ -318,7 +318,7 @@ class Bot(asynchat.async_chat):
         ping_thread.start()
 
     def _timeout_check(self):
-        while True:
+        while self.connected or self.connecting:
             if (datetime.now() - self.last_ping_time).seconds > int(self.config.timeout):
                 stderr('Ping timeout reached after %s seconds, closing connection' % self.config.timeout)
                 self.handle_close()
@@ -327,7 +327,7 @@ class Bot(asynchat.async_chat):
                 time.sleep(int(self.config.timeout))
 
     def _send_ping(self):
-        while True:
+        while self.connected or self.connecting:
             if self.connected and (datetime.now() - self.last_ping_time).seconds > int(self.config.timeout) / 2:
                 try:
                     self.write(('PING', self.config.host))

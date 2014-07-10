@@ -132,7 +132,7 @@ def manage_rss(bot, trigger):
 
 class RSSManager:
     def __init__(self, bot):
-        self.running = False
+        self.running = True
         self.sub = bot.db.substitution
 
         # get a list of all methods in this class that start with _rss_
@@ -408,17 +408,6 @@ def read_feeds(bot, force=False):
         bot.debug(feed.channel, "{0}: status = {1}, version = '{2}', items = {3}".format(
             feed.name, status, fp.version, len(fp.entries)), 'verbose')
 
-        # check for malformed XML
-        if fp.bozo:
-            # The bozo_exception will be a string or something in case some automatic
-            # fallbacks works... Only if they fail it will fail completly...
-            try:
-                bot.debug(__file__, "Got malformed feed on {0}, disabling ({1})".format(
-                    feed.name, fp.bozo_exception.getMessage()), 'warning')
-                disable_feed()
-                continue
-            except AttributeError:
-               pass
 
         # check HTTP status
         if status == 301:  # MOVED_PERMANENTLY
