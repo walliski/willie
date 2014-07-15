@@ -23,3 +23,6 @@ willie.wiki/*
 .settings
 .project
 .pydevproject
+
+# Venv
+venv
