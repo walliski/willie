@@ -408,6 +408,7 @@ def read_feeds(bot, force=False):
         bot.debug(feed.channel, "{0}: status = {1}, version = '{2}', items = {3}".format(
             feed.name, status, fp.version, len(fp.entries)), 'verbose')
 
+
         # check HTTP status
         if status == 301:  # MOVED_PERMANENTLY
             bot.debug(
