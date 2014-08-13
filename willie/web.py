@@ -73,7 +73,12 @@ def get(uri, timeout=20, headers=None, return_headers=False,
                 # attempt unicode on failure
                 encoding_match = None
         if not encoding_match:
-            bytes = bytes.decode('utf-8')
+            # Yes this is ugly... But it might work..? Needed for returning file info instead
+            # of title... Hack for the URL.py module...
+            try:
+                bytes = bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
     if not return_headers:
         return bytes
     else:

@@ -204,9 +204,15 @@ def check_callbacks(bot, trigger, url, run=True):
 
 def find_title(url):
     """Return the title for the given URL."""
-    try:
-        content, headers = web.get(url, return_headers=True, limit_bytes=max_bytes)
-    except UnicodeDecodeError:
+    # This might fail since it ignores an exception it shouldn't \/
+    content, headers = web.get(url, return_headers=True, limit_bytes=max_bytes)
+
+    # Some cleanup that I don't really grok, but was in the original, so
+    # we'll keep it (with the compiled regexes made global) for now.
+    try:    #This try is also a hack. If this fails, then it is not text in the content. In that case
+            #we want to return filesize instead...
+        content = title_tag_data.sub(r'<\1title>', content)
+    except TypeError:
         #If it cant find any encoding, it could be an image or other file. Show filetype and size.
 
         type = str(headers.get('Content-Type'))
@@ -225,10 +231,7 @@ def find_title(url):
 
         return title
 
-
-    # Some cleanup that I don't really grok, but was in the original, so
-    # we'll keep it (with the compiled regexes made global) for now.
-    content = title_tag_data.sub(r'<\1title>', content)
+    #If we can set content, then it is probably valid, and we go on...
     content = quoted_title.sub('', content)
 
     start = content.find('<title>')
