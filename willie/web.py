@@ -64,7 +64,7 @@ def get(uri, timeout=20, headers=None, return_headers=False,
     headers = dict(u.info())
     if not dont_decode:
         # Detect encoding automatically from HTTP headers
-        content_type = headers.get('Content-Type') or ''
+        content_type = headers.get('content-type') or ''
         encoding_match = re.match('.*?charset *= *(\S+)', content_type, re.IGNORECASE)
         if encoding_match:
             try:
@@ -73,12 +73,13 @@ def get(uri, timeout=20, headers=None, return_headers=False,
                 # attempt unicode on failure
                 encoding_match = None
         if not encoding_match:
-            # Yes this is ugly... But it might work..? Needed for returning file info instead
-            # of title... Hack for the URL.py module...
+            # Hacked this to enable showing filesize in case it cant find anything readable
+            # Should throw exception, but returns None as content instead...
             try:
                 bytes = bytes.decode('utf-8')
-            except UnicodeDecodeError:
-                pass
+            except:
+                return (None, headers)
+
     if not return_headers:
         return bytes
     else:
