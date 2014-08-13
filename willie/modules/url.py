@@ -212,7 +212,8 @@ def find_title(url):
     try:    #This try is also a hack. If this fails, then it is not text in the content. In that case
             #we want to return filesize instead...
         content = title_tag_data.sub(r'<\1title>', content)
-    except TypeError:
+        content = quoted_title.sub('', content)
+    except (TypeError, UnicodeDecodeError):
         #If it cant find any encoding, it could be an image or other file. Show filetype and size.
 
         type = str(headers.get('Content-Type'))
@@ -232,7 +233,7 @@ def find_title(url):
         return title
 
     #If we can set content, then it is probably valid, and we go on...
-    content = quoted_title.sub('', content)
+    
 
     start = content.find('<title>')
     end = content.find('</title>')
