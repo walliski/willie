@@ -26,7 +26,7 @@ from willie import tools
 import willie.irc as irc
 from willie.db import WillieDB
 from willie.tools import (stderr, Nick, PriorityQueue, released,
-                   get_command_regexp, iteritems, itervalues)
+                          get_command_regexp, iteritems, itervalues)
 import willie.module as module
 if sys.version_info.major >= 3:
     unicode = str
@@ -502,15 +502,15 @@ class Willie(irc.Bot):
                 func.thread = True
 
             if not hasattr(func, 'event'):
-                func.event = 'PRIVMSG'
+                func.event = ['PRIVMSG']
             else:
-                func.event = func.event.upper()
+                if type(func.event) is not list:
+                    func.event = [func.event.upper()]
+                else:
+                    func.event = [event.upper() for event in func.event]
 
             if not hasattr(func, 'rate'):
-                if hasattr(func, 'commands'):
-                    func.rate = 0
-                else:
-                    func.rate = 0
+                func.rate = 0
 
             if hasattr(func, 'rule'):
                 rules = func.rule
@@ -576,7 +576,7 @@ class Willie(irc.Bot):
         def __dir__(self):
             classattrs = [attr for attr in self.__class__.__dict__
                           if not attr.startswith('__')]
-            return list(self.__dict__)+classattrs+dir(self.bot)
+            return list(self.__dict__) + classattrs + dir(self.bot)
 
         def say(self, string, max_messages=1):
             self.bot.msg(self.origin.sender, string, max_messages)
@@ -787,7 +787,7 @@ class Willie(irc.Bot):
                         list_of_blocked_functions.append(function_name)
                         continue
 
-                    if event != func.event:
+                    if event not in func.event:
                         continue
                     if self.limit(origin, func):
                         continue

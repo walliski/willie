@@ -43,9 +43,14 @@ def configure(config):
     if config.option('Exclude certain URLs from automatic title display', False):
         if not config.has_section('url'):
             config.add_section('url')
-        config.add_list('url', 'exclude', 'Enter regular expressions for each URL you would like to exclude.',
+        config.add_list(
+            'url',
+            'exclude',
+            'Enter regular expressions for each URL you would like to exclude.',
             'Regex:')
-        config.interactive_add('url', 'exclusion_char',
+        config.interactive_add(
+            'url',
+            'exclusion_char',
             'Prefix to suppress URL titling', '!')
 
 
@@ -83,7 +88,7 @@ def setup(bot=None):
         exclusion_char = bot.config.url.exclusion_char
 
     url_finder = re.compile(r'(?u)(%s?(?:http|https|ftp)(?:://\S+))' %
-        (exclusion_char))
+                            (exclusion_char))
 
 
 @commands('title')
@@ -120,6 +125,12 @@ def title_auto(bot, trigger):
     """
     if re.match(bot.config.core.prefix + 'title', trigger):
         return
+
+    # Avoid fetching known malicious links
+    if 'safety_cache' in bot.memory and trigger in bot.memory['safety_cache']:
+        if bot.memory['safety_cache'][trigger]['positives'] > 1:
+            return
+
     urls = re.findall(url_finder, trigger)
     results = process_urls(bot, trigger, urls)
     bot.memory['last_seen_url'][trigger.sender] = urls[-1]
@@ -204,10 +215,9 @@ def check_callbacks(bot, trigger, url, run=True):
 
 def find_title(url):
     """Return the title for the given URL."""
-    
-    
+
     content, headers = web.get(url, return_headers=True, limit_bytes=max_bytes)
-        
+
     if content == None:
         #If it cant find any encoding, it could be an image or other file. Show filetype and size.
 

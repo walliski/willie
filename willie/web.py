@@ -39,6 +39,9 @@ if not hasattr(ssl, 'match_hostname'):
     ssl.match_hostname = backports.ssl_match_hostname.match_hostname
     ssl.CertificateError = backports.ssl_match_hostname.CertificateError
 
+from willie import __version__
+USER_AGENT = 'Willie/{} (http://willie.dftba.net)'
+
 
 # HTTP GET
 def get(uri, timeout=20, headers=None, return_headers=False,
@@ -156,12 +159,13 @@ class VerifiedHTTPSConnection(httplib.HTTPConnection):
             if self._tunnel_host:
                 self.sock = sock
                 self._tunnel()
-            if not  os.path.exists(ca_certs):
+            if not os.path.exists(ca_certs):
                 raise Exception('CA Certificate bundle %s is not readable' % ca_certs)
             self.sock = ssl.wrap_socket(sock,
                                         ca_certs=ca_certs,
                                         cert_reqs=ssl.CERT_REQUIRED)
             ssl.match_hostname(self.sock.getpeercert(), self.host)
+
 
 class VerifiedHTTPSHandler(urllib2.HTTPSHandler):
 
@@ -191,15 +195,20 @@ def get_urllib_object(uri, timeout, headers=None, verify_ssl=True, data=None):
     except:
         uri = iri_to_uri(uri)
 
-    original_headers = {'Accept': '*/*', 'User-Agent': 'Mozilla/5.0 (Willie)'}
+    original_headers = {'Accept': '*/*', 'User-Agent': USER_AGENT}
     if headers is not None:
         original_headers.update(headers)
     else:
         headers = original_headers
+
     if verify_ssl:
         opener = urllib2.build_opener(VerifiedHTTPSHandler)
     else:
         opener = urllib2.build_opener()
+
+    if type(data) is dict:
+        data = urlencode(data).encode('utf-8')
+
     req = urllib2.Request(uri, headers=headers, data=data)
     try:
         u = opener.open(req, None, timeout)
